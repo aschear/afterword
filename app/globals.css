@@ -1,26 +1,165 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Afterword Design System — Warm, Analog, Literary, Organic */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Map CSS variables for Tailwind */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-cream: hsl(var(--cream));
+  --color-charcoal: hsl(var(--charcoal));
+  --color-dusty-blue: hsl(var(--dusty-blue));
+  --color-sage-green: hsl(var(--sage-green));
+  --color-warm-brown: hsl(var(--warm-brown));
+  --color-pencil-gray: hsl(var(--pencil-gray));
+  --color-paper-shadow: hsl(var(--paper-shadow));
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+:root {
+  --background: 40 33% 98%;
+  --foreground: 0 0% 20%;
+  --card: 40 33% 96%;
+  --card-foreground: 0 0% 20%;
+  --primary: 30 25% 30%;
+  --primary-foreground: 40 33% 98%;
+  --secondary: 40 20% 92%;
+  --secondary-foreground: 0 0% 20%;
+  --muted: 40 15% 90%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 150 15% 70%;
+  --accent-foreground: 0 0% 20%;
+  --destructive: 0 84.2% 60.2%;
+  --border: 30 15% 78%;
+  --input: 30 15% 78%;
+  --ring: 30 25% 30%;
+  --radius: 0.5rem;
+  --cream: 40 33% 98%;
+  --charcoal: 0 0% 20%;
+  --dusty-blue: 210 25% 72%;
+  --sage-green: 150 18% 65%;
+  --warm-brown: 30 30% 55%;
+  --pencil-gray: 30 8% 75%;
+  --paper-shadow: 30 20% 85%;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 30 10% 8%;
+    --foreground: 40 20% 90%;
+    --card: 30 10% 10%;
+    --card-foreground: 40 20% 90%;
+    --primary: 40 30% 75%;
+    --primary-foreground: 30 10% 8%;
+    --muted: 30 10% 15%;
+    --muted-foreground: 40 10% 60%;
+    --border: 30 10% 20%;
+    --input: 30 10% 20%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-body), Georgia, "Times New Roman", serif;
+    color: hsl(var(--charcoal));
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display), Georgia, serif;
+    color: hsl(var(--charcoal));
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display), Georgia, serif;
+  }
+  .font-body {
+    font-family: var(--font-body), Georgia, "Times New Roman", serif;
+  }
+}
+
+@layer components {
+  .paper-texture {
+    position: relative;
+    background-color: hsl(var(--cream));
+  }
+
+  .paper-texture::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.4;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+    z-index: 0;
+    mix-blend-mode: multiply;
+  }
+
+  .paper-texture > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .btn-sketchy {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    padding: 0.75rem 1.75rem;
+    background: transparent;
+    color: hsl(var(--charcoal));
+    border: 2px solid hsl(var(--charcoal));
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    box-shadow: -3px 3px 0px hsl(0, 0%, 60%);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .btn-sketchy:hover {
+    box-shadow: -4px 4px 0px hsl(0, 0%, 60%);
+    transform: translate(1px, -1px);
+  }
+
+  .btn-sketchy:active {
+    box-shadow: -1px 1px 0px hsl(0, 0%, 60%);
+    transform: translate(0px, 0px);
+  }
+
+  .pencil-divider {
+    width: 3px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      hsl(30 8% 35%) 10%,
+      hsl(30 8% 35% / 0.85) 30%,
+      hsl(30 8% 35%) 50%,
+      hsl(30 8% 35% / 0.8) 70%,
+      hsl(30 8% 35%) 90%,
+      transparent 100%
+    );
+    min-height: 120px;
+  }
 }
