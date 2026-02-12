@@ -21,7 +21,7 @@ export function HeroSection() {
           <h2 className="font-display text-3xl md:text-4xl lg:text-[2.75rem] leading-tight mb-6 font-medium">
             Your bookshelf is just the beginning.
           </h2>
-          <p className="font-body text-base md:text-lg leading-relaxed mb-8 text-muted-foreground">
+          <p className="font-body text-base md:text-lg leading-relaxed mb-8 text-charcoal">
             Scan your library. Discover your next favorite book, movie, album, or local event.
           </p>
           <a href="/dashboard" className="btn-sketchy inline-block">

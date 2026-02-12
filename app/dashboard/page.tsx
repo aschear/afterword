@@ -30,7 +30,7 @@ export default function DashboardPage() {
         <h2 className="font-display text-2xl md:text-3xl font-medium mb-2">
           Your recommendations
         </h2>
-        <p className="font-body text-muted-foreground mb-8">
+        <p className="font-body text-charcoal mb-8">
           Curated from your shelf. More coming once you connect your library.
         </p>
         <RecommendationList recommendations={MOCK_RECOMMENDATIONS} />
