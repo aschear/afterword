@@ -57,22 +57,29 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            <button
-              type="button"
-              className="w-full py-3 rounded-xl bg-charcoal text-white font-body font-semibold text-base hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-              disabled
+            <Link
+              href="/dashboard"
+              className="block w-full py-3 rounded-xl bg-charcoal text-white font-body font-semibold text-base hover:opacity-90 transition-opacity text-center"
             >
               Sign In
-            </button>
+            </Link>
           </form>
         </div>
 
-        <Link
-          href="/"
-          className="font-body text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← Back to home
-        </Link>
+        <div className="flex flex-col items-center gap-3">
+          <Link
+            href="#"
+            className="font-body text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign Up
+          </Link>
+          <Link
+            href="/"
+            className="font-body text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Back to home
+          </Link>
+        </div>
       </div>
     </div>
   );
