@@ -51,7 +51,7 @@ function CategoryBlock({
   aspect,
 }: {
   heading: string;
-  items: { id: string; title: string; imageUrl: string }[];
+  items: readonly { id: string; title: string; imageUrl: string }[];
   aspect: "portrait" | "square";
 }) {
   const isPortrait = aspect === "portrait";
