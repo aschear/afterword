@@ -24,7 +24,7 @@ const features = [
 export function FeaturesSection() {
   return (
     <section className="px-6 md:px-12 lg:px-20 pt-8 pb-6 max-w-6xl mx-auto">
-      <div className="flex flex-col lg:flex-row items-start justify-between gap-8 lg:gap-0">
+      <div className="flex flex-col lg:flex-row items-stretch justify-between gap-8 lg:gap-0">
         {features.map((feature, index) => (
           <div key={feature.title} className="flex items-start gap-0 flex-1">
             {index > 0 && (
