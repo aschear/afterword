@@ -150,34 +150,12 @@
 
   .input-page-corner {
     position: relative;
+    overflow: visible;
   }
 
-  .input-page-corner::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 14px;
-    height: 14px;
-    border-top: 2px solid hsl(0 0% 45%);
-    border-left: 2px solid hsl(0 0% 45%);
-    border-radius: 2px 0 0 0;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .input-page-corner::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 14px;
-    height: 14px;
-    border-bottom: 2px solid hsl(0 0% 45%);
-    border-right: 2px solid hsl(0 0% 45%);
-    border-radius: 0 0 2px 0;
-    pointer-events: none;
-    z-index: 1;
+  /* Reduced radius to match hand-drawn corner cap inner curve */
+  .input-with-corner-caps {
+    border-radius: 3px;
   }
 
   .pencil-divider {

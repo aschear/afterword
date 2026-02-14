@@ -33,11 +33,27 @@ export default function LoginPage() {
                 Email
               </label>
               <div className="input-page-corner relative">
+                <Image
+                  src="/assets/corner-cap.png"
+                  alt=""
+                  width={48}
+                  height={48}
+                  unoptimized
+                  className="absolute -top-4 -left-4 z-10 pointer-events-none w-12 h-12"
+                />
+                <Image
+                  src="/assets/corner-cap.png"
+                  alt=""
+                  width={48}
+                  height={48}
+                  unoptimized
+                  className="absolute -bottom-4 -right-4 z-10 pointer-events-none rotate-180 w-12 h-12"
+                />
                 <input
                   id="email"
                   type="email"
                   placeholder=""
-                  className="w-full px-4 py-3 border border-[hsl(0,0%,80%)] rounded-lg bg-white font-body text-charcoal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-charcoal/20"
+                  className="input-with-corner-caps w-full px-4 py-3 border border-[hsl(0,0%,80%)] bg-white font-body text-charcoal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-charcoal/20"
                 />
               </div>
             </div>
@@ -49,11 +65,27 @@ export default function LoginPage() {
                 Password
               </label>
               <div className="input-page-corner relative">
+                <Image
+                  src="/assets/corner-cap.png"
+                  alt=""
+                  width={48}
+                  height={48}
+                  unoptimized
+                  className="absolute -top-4 -left-4 z-10 pointer-events-none w-12 h-12"
+                />
+                <Image
+                  src="/assets/corner-cap.png"
+                  alt=""
+                  width={48}
+                  height={48}
+                  unoptimized
+                  className="absolute -bottom-4 -right-4 z-10 pointer-events-none rotate-180 w-12 h-12"
+                />
                 <input
                   id="password"
                   type="password"
                   placeholder=""
-                  className="w-full px-4 py-3 border border-[hsl(0,0%,80%)] rounded-lg bg-white font-body text-charcoal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-charcoal/20"
+                  className="input-with-corner-caps w-full px-4 py-3 border border-[hsl(0,0%,80%)] bg-white font-body text-charcoal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-charcoal/20"
                 />
               </div>
             </div>
