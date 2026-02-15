@@ -1,55 +1,38 @@
 "use client";
 
-import type { AnalyzeShelfResponse, RecommendationItem } from "@/lib/types";
+import type { AnalyzeShelfResponse } from "@/lib/types";
 
 interface RecommendationsViewProps {
   data: AnalyzeShelfResponse;
   shelfImageUrl: string | null;
 }
 
-function RecommendationCard({ item }: { item: RecommendationItem }) {
-  return (
-    <article className="border-b border-[hsl(0,0%,88%)] pb-6 mb-6 last:border-0 last:mb-0 last:pb-0">
-      <h3 className="font-display text-lg font-medium text-charcoal mb-0.5">
-        {item.title}
-      </h3>
-      <p className="font-body text-sm text-muted-foreground mb-3">
-        {item.creator}
-      </p>
-      <p className="font-body text-sm leading-relaxed text-charcoal mb-2">
-        {item.explanation}
-      </p>
-      <p className="font-body text-xs italic text-muted-foreground">
-        {item.why_it_connects}
-      </p>
-    </article>
-  );
-}
-
-function Section({
-  title,
-  items,
-}: {
-  title: string;
-  items: RecommendationItem[];
-}) {
+function Section({ title, items }: { title: string; items: string[] }) {
   if (!items?.length) return null;
   return (
     <section className="mb-10">
       <h2 className="font-display text-xl font-medium text-charcoal mb-4">
         {title}
       </h2>
-      <div className="space-y-0">
+      <ul className="space-y-1">
         {items.map((item, i) => (
-          <RecommendationCard key={i} item={item} />
+          <li key={i} className="font-body text-charcoal">
+            {item}
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
 
 export function RecommendationsView({ data, shelfImageUrl }: RecommendationsViewProps) {
-  const { taste_profile, recommendations } = data;
+  const {
+    detected_books,
+    dominant_themes,
+    reader_archetype,
+    tone_profile,
+    recommendations,
+  } = data;
 
   return (
     <div className="min-h-screen paper-texture pb-20">
@@ -70,33 +53,43 @@ export function RecommendationsView({ data, shelfImageUrl }: RecommendationsView
         </h1>
 
         <div className="mb-8 space-y-4">
-          {taste_profile.dominant_themes?.length > 0 && (
+          {detected_books?.length > 0 && (
+            <div>
+              <p className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                Detected books
+              </p>
+              <p className="font-body text-charcoal">
+                {detected_books.join(" · ")}
+              </p>
+            </div>
+          )}
+          {dominant_themes?.length > 0 && (
             <div>
               <p className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">
                 Dominant themes
               </p>
               <p className="font-body text-charcoal">
-                {taste_profile.dominant_themes.join(" · ")}
+                {dominant_themes.join(" · ")}
               </p>
             </div>
           )}
-          {taste_profile.aesthetic_tone && (
+          {reader_archetype && reader_archetype !== "Unknown" && (
             <div>
               <p className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                Aesthetic tone
+                Reader archetype
               </p>
-              <p className="font-body text-charcoal leading-relaxed">
-                {taste_profile.aesthetic_tone}
+              <p className="font-body text-charcoal">
+                {reader_archetype}
               </p>
             </div>
           )}
-          {taste_profile.intellectual_gravity && (
+          {tone_profile?.length > 0 && (
             <div>
               <p className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                Intellectual gravity
+                Tone profile
               </p>
-              <p className="font-body text-charcoal leading-relaxed">
-                {taste_profile.intellectual_gravity}
+              <p className="font-body text-charcoal">
+                {tone_profile.join(" · ")}
               </p>
             </div>
           )}
@@ -105,8 +98,7 @@ export function RecommendationsView({ data, shelfImageUrl }: RecommendationsView
         <Section title="Books" items={recommendations.books} />
         <Section title="Films" items={recommendations.films} />
         <Section title="Music" items={recommendations.music} />
-        <Section title="Events" items={recommendations.events} />
-        <Section title="Unexpected" items={recommendations.unexpected} />
+        <Section title="Podcasts" items={recommendations.podcasts} />
       </div>
     </div>
   );

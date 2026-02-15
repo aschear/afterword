@@ -49,15 +49,14 @@ Afterword was scaffolded as a **clean Next.js + Tailwind** application, using an
 **Scan → Analyze → Results flow**
 
 - **`app/scan/page.tsx`**: Mobile-first capture flow; steps: capture → preview → processing. Uses `ImageCapture`, `UploadPreview`, `ProcessingState`; POSTs image to `/api/analyze`, stores result and image URL in sessionStorage, redirects to `/results`.
-- **`app/results/page.tsx`**: Reads analysis from sessionStorage; renders `RecommendationsView` (taste profile + Books, Films, Music, Events, Unexpected) or fallback “Go to Scan” if missing.
-- **`app/api/analyze/route.ts`**: Accepts image via FormData; MVP uses mock extracted titles (no OCR); calls `lib/ai/analyzeShelf.ts`; returns structured JSON; in-memory per-IP rate limit (10/hour) with `X-RateLimit-*` and `Retry-After` headers.
-- **`lib/ai/analyzeShelf.ts`**: OpenAI `gpt-4o-mini` with structured JSON (taste_profile, recommendations); literary/editorial system prompt.
+- **`app/results/page.tsx`**: Reads analysis from sessionStorage; renders `RecommendationsView` (taste profile + Books, Films, Music, Podcasts) or fallback “Go to Scan” if missing.
+- **`app/api/analyze/route.ts`**: Accepts image via FormData; converts to base64; single multimodal OpenAI (gpt-4o) vision call; returns structured JSON (detected_books, dominant_themes, reader_archetype, tone_profile, recommendations); in-memory per-IP rate limit (10/hour) with `X-RateLimit-*` and `Retry-After` headers.
 - **`components/scan/*`**: ImageCapture (file input with `capture="environment"`), UploadPreview, ProcessingState (literary loading copy).
-- **`components/recommendations/RecommendationsView.tsx`**: Renders taste profile and recommendation cards (title, creator, explanation, why_it_connects) in a single-column, mobile-first layout.
+- **`components/recommendations/RecommendationsView.tsx`**: Renders taste profile (detected books, themes, reader archetype, tone) and recommendation lists (books, films, music, podcasts) in a single-column, mobile-first layout.
 
 **Supporting lib and types**
 
-- **`lib/types.ts`**: Shared types for `AnalyzeShelfResponse`, `TasteProfile`, `Recommendations`, `RecommendationItem`.
+- **`lib/types.ts`**: Shared types for `AnalyzeShelfResponse` (detected_books, dominant_themes, reader_archetype, tone_profile, recommendations).
 - **`lib/rateLimit.ts`**: In-memory per-IP rate limiting and client IP extraction from request headers.
 - **`lib/supabase/client.ts`**, **`lib/mock-recommendations.ts`**, **`lib/ai/recommendations.ts`**, **`lib/integrations/placeholder.ts`**: Present for future or alternate flows (e.g. Supabase, placeholder APIs).
 - **`app/api/recommendations/route.ts`**: Additional API route (e.g. for non-scan recommendations).

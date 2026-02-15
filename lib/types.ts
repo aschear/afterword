@@ -1,25 +1,18 @@
-export interface RecommendationItem {
-  title: string;
-  creator: string;
-  explanation: string;
-  why_it_connects: string;
-}
-
-export interface TasteProfile {
-  dominant_themes: string[];
-  aesthetic_tone: string;
-  intellectual_gravity: string;
-}
-
-export interface Recommendations {
-  books: RecommendationItem[];
-  films: RecommendationItem[];
-  music: RecommendationItem[];
-  events: RecommendationItem[];
-  unexpected: RecommendationItem[];
+/**
+ * Cultural analysis response from the shelf vision API.
+ * Used for MCP integrations (Spotify, Netflix) via themes and archetype.
+ */
+export interface CulturalAnalysisRecommendations {
+  books: string[];
+  films: string[];
+  music: string[];
+  podcasts: string[];
 }
 
 export interface AnalyzeShelfResponse {
-  taste_profile: TasteProfile;
-  recommendations: Recommendations;
+  detected_books: string[];
+  dominant_themes: string[];
+  reader_archetype: string;
+  tone_profile: string[];
+  recommendations: CulturalAnalysisRecommendations;
 }
