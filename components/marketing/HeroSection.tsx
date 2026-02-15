@@ -24,7 +24,7 @@ export function HeroSection() {
           <p className="font-body text-base md:text-lg leading-relaxed mb-8 text-charcoal">
             Scan your library. Discover your next favorite book, movie, album, or local event.
           </p>
-          <a href="/login" className="btn-sketchy inline-block">
+          <a href="/scan" className="btn-sketchy inline-block">
             Scan Your Shelf & Get Recommendations
           </a>
         </div>
