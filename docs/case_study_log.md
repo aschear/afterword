@@ -107,6 +107,28 @@ From this point forward, the following protocol applies:
 
 ---
 
+### 2025-02-15 — Production multimodal cultural analysis engine
+
+**What changed**
+- Replaced mock title extraction with a real OpenAI vision pipeline in `app/api/analyze/route.ts`.
+- Removed `lib/ai/analyzeShelf.ts` (mock titles, `getMockExtractedTitles`, `MOCK_TITLES`).
+- Single multimodal `gpt-4o` call: image → base64 → vision API.
+- New response shape: `detected_books`, `dominant_themes`, `reader_archetype`, `tone_profile`, `recommendations` (books, films, music, podcasts).
+- Updated `RecommendationsView` for the new structure; categories are now Books, Films, Music, Podcasts (no Events/Unexpected).
+
+**Technical reasoning**
+- Image was previously ignored; mock titles caused identical results for every upload.
+- Vision model analyzes actual shelf content so recommendations vary by photo.
+- Temperature 0.6 balances creative variety with stable output.
+- When no books are visible, the model returns empty structures per system prompt.
+- JSON parsing failures return 500; `normalizeResponse` guards against malformed AI output.
+- Response schema is structured for future MCP integrations (Spotify, Netflix) via themes and archetype.
+
+**Case study suggestion**
+- Side-by-side: photo of literary shelf vs photo of Harry Potter shelf (or keyboard) showing different themes, archetypes, and recommendations.
+
+---
+
 ### 2025-02-15 — Case study log and documentation protocol
 
 **What changed**  
