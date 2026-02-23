@@ -148,25 +148,17 @@ export async function POST(request: Request) {
             },
           ],
         },
-        // Pre-fill the assistant turn with "{" to guarantee a JSON object response.
-        {
-          role: "assistant",
-          content: "{",
-        },
       ],
     });
 
     const firstBlock = message.content[0];
-    const rawSuffix = firstBlock?.type === "text" ? firstBlock.text : null;
-    if (rawSuffix === null) {
+    const raw = firstBlock?.type === "text" ? firstBlock.text : null;
+    if (raw === null) {
       return NextResponse.json(
         { error: "Empty response from analysis service" },
         { status: 500, headers: rateLimitHeaders(limitResult) }
       );
     }
-
-    // Reconstruct the full JSON by prepending the pre-filled "{".
-    const raw = "{" + rawSuffix;
 
     let parsed: Record<string, unknown>;
     try {
