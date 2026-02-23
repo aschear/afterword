@@ -1,16 +1,30 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { getClientIp, checkRateLimit } from "@/lib/rateLimit";
 import type { AnalyzeShelfResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// Anthropic only accepts these four image MIME types.
+type AnthropicMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+const ALLOWED_MEDIA_TYPES = new Set<AnthropicMediaType>([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+function toAnthropicMediaType(type: string): AnthropicMediaType {
+  return ALLOWED_MEDIA_TYPES.has(type as AnthropicMediaType)
+    ? (type as AnthropicMediaType)
+    : "image/jpeg";
+}
+
 const SYSTEM_PROMPT = `You are a literary and cultural critic analyzing a photo of someone's bookshelf or book collection.
 
-Your task: analyze the image and return STRICT JSON only (no markdown, no code fence, no extra text).
+Analyze the image and output ONLY a raw JSON object — no prose, no markdown, no code fences, no explanation before or after.
 
-If NO books are visible in the image (e.g., wrong photo, keyboard, empty shelf, unrecognizable), return exactly:
+If NO books are visible (wrong photo, empty shelf, keyboard, unrecognizable content), return exactly:
 {
   "detected_books": [],
   "dominant_themes": [],
@@ -24,18 +38,18 @@ If NO books are visible in the image (e.g., wrong photo, keyboard, empty shelf, 
   }
 }
 
-If books ARE visible:
-1. detected_books: list each visible book as "Title - Author" (best effort from spine/cover text)
-2. dominant_themes: 2–4 literary themes (e.g., "existentialism", "feminist memoir", "southern gothic")
-3. reader_archetype: a single archetype label (e.g., "Existential Modernist", "Romantic Maximalist", "Speculative Realist")
-4. tone_profile: 2–4 tonal qualities (e.g., "melancholic", "absurdist", "hopeful", "ironic")
-5. recommendations:
-   - books: 5 book recommendations as "Title - Author"
-   - films: 5 film recommendations
-   - music: 5 music artists or albums
-   - podcasts: 3 podcast recommendations
+If books ARE visible, return a JSON object with these exact keys:
+- detected_books: array of strings — each visible title as "Title - Author" (best-effort from spine/cover text)
+- dominant_themes: array of 2–4 strings — literary themes (e.g. "existentialism", "feminist memoir", "southern gothic")
+- reader_archetype: string — a single evocative label (e.g. "Existential Modernist", "Romantic Maximalist", "Speculative Realist")
+- tone_profile: array of 2–4 strings — tonal qualities (e.g. "melancholic", "absurdist", "hopeful", "ironic")
+- recommendations: object with exactly four array keys:
+    - books: 5 strings as "Title - Author"
+    - films: 5 film title strings
+    - music: 5 strings as artist names or "Artist - Album"
+    - podcasts: 3 podcast name strings
 
-Return ONLY valid JSON matching this structure. Be specific and varied—avoid generic answers.`;
+Be specific and varied. No generic answers. Output the JSON object only.`;
 
 function rateLimitHeaders(result: { limit: number; remaining: number; resetAt: number }) {
   const retryAfter = Math.ceil((result.resetAt - Date.now()) / 1000);
@@ -66,7 +80,8 @@ function normalizeResponse(parsed: Record<string, unknown>): AnalyzeShelfRespons
   return {
     detected_books: ensureStringArray(parsed.detected_books),
     dominant_themes: ensureStringArray(parsed.dominant_themes),
-    reader_archetype: typeof parsed.reader_archetype === "string" ? parsed.reader_archetype : "Unknown",
+    reader_archetype:
+      typeof parsed.reader_archetype === "string" ? parsed.reader_archetype : "Unknown",
     tone_profile: ensureStringArray(parsed.tone_profile),
     recommendations: ensureRecs(parsed.recommendations),
   };
@@ -97,9 +112,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      console.error("[api/analyze] OPENAI_API_KEY is not set");
+      console.error("[api/analyze] ANTHROPIC_API_KEY is not set");
       return NextResponse.json(
         { error: "Analysis service not configured" },
         { status: 500 }
@@ -108,38 +123,50 @@ export async function POST(request: Request) {
 
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
-    const mimeType = file.type.startsWith("image/") ? file.type : "image/jpeg";
+    const mediaType = toAnthropicMediaType(file.type);
 
-    const openai = new OpenAI({ apiKey });
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const anthropic = new Anthropic({ apiKey });
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
           content: [
-            { type: "text", text: "Analyze this shelf image and return the JSON." },
             {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64}`,
-                detail: "high",
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mediaType,
+                data: base64,
               },
+            },
+            {
+              type: "text",
+              text: "Analyze this shelf image and return the JSON.",
             },
           ],
         },
+        // Pre-fill the assistant turn with "{" to guarantee a JSON object response.
+        {
+          role: "assistant",
+          content: "{",
+        },
       ],
-      response_format: { type: "json_object" },
-      temperature: 0.6,
     });
 
-    const raw = completion.choices[0]?.message?.content;
-    if (!raw) {
+    const firstBlock = message.content[0];
+    const rawSuffix = firstBlock?.type === "text" ? firstBlock.text : null;
+    if (rawSuffix === null) {
       return NextResponse.json(
         { error: "Empty response from analysis service" },
         { status: 500, headers: rateLimitHeaders(limitResult) }
       );
     }
+
+    // Reconstruct the full JSON by prepending the pre-filled "{".
+    const raw = "{" + rawSuffix;
 
     let parsed: Record<string, unknown>;
     try {
