@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     const anthropic = new Anthropic({ apiKey });
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1024,
+      max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -160,9 +160,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Strip markdown code fences if the model wrapped the JSON (e.g. ```json ... ```)
+    const stripped = raw
+      .replace(/^\s*```(?:json)?\s*\n?/i, "")
+      .replace(/\n?```\s*$/i, "")
+      .trim();
+
     let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(raw) as Record<string, unknown>;
+      parsed = JSON.parse(stripped) as Record<string, unknown>;
     } catch {
       console.error("[api/analyze] Failed to parse AI response as JSON:", raw?.slice(0, 200));
       return NextResponse.json(
