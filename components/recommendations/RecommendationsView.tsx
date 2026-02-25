@@ -7,6 +7,23 @@ interface RecommendationsViewProps {
   shelfImageUrl: string | null;
 }
 
+function PencilDivider() {
+  return (
+    <div className="w-full my-6" aria-hidden>
+      <svg viewBox="0 0 400 8" preserveAspectRatio="none" className="w-full h-2">
+        <path
+          d="M0,4 C25,2 55,6 90,4 C125,2 155,6 200,4 C245,2 275,6 310,4 C345,2 375,6 400,4"
+          stroke="hsl(30, 8%, 65%)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.75"
+        />
+      </svg>
+    </div>
+  );
+}
+
 function Section({
   title,
   items,
@@ -18,7 +35,7 @@ function Section({
 }) {
   if (!items?.length) return null;
   return (
-    <section className="mb-10">
+    <section className="mb-4">
       <h2 className="font-display text-xl font-medium text-charcoal mb-3">
         {title}
       </h2>
@@ -40,7 +57,6 @@ function Section({
 
 export function RecommendationsView({ data, shelfImageUrl }: RecommendationsViewProps) {
   const {
-    detected_books,
     dominant_themes,
     reader_archetype,
     tone_profile,
@@ -65,52 +81,46 @@ export function RecommendationsView({ data, shelfImageUrl }: RecommendationsView
           Your Taste Profile
         </h1>
 
-        <div className="mb-8 space-y-4">
-          {detected_books?.length > 0 && (
-            <div>
-              <p className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">
-                Detected books
-              </p>
-              <p className="font-body text-charcoal">
-                {detected_books.join(" · ")}
-              </p>
-            </div>
-          )}
+        <div className="mb-2 space-y-3">
           {dominant_themes?.length > 0 && (
             <div>
               <p className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">
                 Dominant themes
               </p>
-              <p className="font-body text-charcoal">
-                {dominant_themes.join(" · ")}
-              </p>
+              <ul className="space-y-0.5">
+                {dominant_themes.map((t, i) => (
+                  <li key={i} className="font-body text-charcoal text-sm">
+                    · {t}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           {reader_archetype && reader_archetype !== "Unknown" && (
-            <div>
-              <p className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">
+            <p className="font-body text-charcoal text-sm">
+              <span className="uppercase tracking-wider text-xs text-muted-foreground font-semibold">
                 Reader archetype
-              </p>
-              <p className="font-body text-charcoal">
-                {reader_archetype}
-              </p>
-            </div>
+              </span>
+              : {reader_archetype}
+            </p>
           )}
           {tone_profile?.length > 0 && (
-            <div>
-              <p className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">
+            <p className="font-body text-charcoal text-sm">
+              <span className="uppercase tracking-wider text-xs text-muted-foreground font-semibold">
                 Tone profile
-              </p>
-              <p className="font-body text-charcoal">
-                {tone_profile.join(" · ")}
-              </p>
-            </div>
+              </span>
+              : {tone_profile.join(" · ")}
+            </p>
           )}
         </div>
 
+        <PencilDivider />
         <Section title="Books" items={recommendations.books} intro={recommendations.books_intro} />
+        <PencilDivider />
         <Section title="Films" items={recommendations.films} intro={recommendations.films_intro} />
+        <PencilDivider />
         <Section title="Music" items={recommendations.music} intro={recommendations.music_intro} />
+        <PencilDivider />
         <Section title="Podcasts" items={recommendations.podcasts} intro={recommendations.podcasts_intro} />
       </div>
     </div>
