@@ -20,7 +20,7 @@ function toAnthropicMediaType(type: string): AnthropicMediaType {
     : "image/jpeg";
 }
 
-const SYSTEM_PROMPT = `You are a literary and cultural critic analyzing a photo of someone's bookshelf or book collection.
+const SYSTEM_PROMPT = `You are a literary and cultural critic with deep expertise across literature, cinema, music, and long-form audio. You are analyzing a photo of someone's personal bookshelf.
 
 Analyze the image and output ONLY a raw JSON object — no prose, no markdown, no code fences, no explanation before or after.
 
@@ -31,25 +31,37 @@ If NO books are visible (wrong photo, empty shelf, keyboard, unrecognizable cont
   "reader_archetype": "Unknown",
   "tone_profile": [],
   "recommendations": {
+    "books_intro": "",
     "books": [],
+    "films_intro": "",
     "films": [],
+    "music_intro": "",
     "music": [],
+    "podcasts_intro": "",
     "podcasts": []
   }
 }
 
 If books ARE visible, return a JSON object with these exact keys:
 - detected_books: array of strings — each visible title as "Title - Author" (best-effort from spine/cover text)
-- dominant_themes: array of 2–4 strings — literary themes (e.g. "existentialism", "feminist memoir", "southern gothic")
-- reader_archetype: string — a single evocative label (e.g. "Existential Modernist", "Romantic Maximalist", "Speculative Realist")
-- tone_profile: array of 2–4 strings — tonal qualities (e.g. "melancholic", "absurdist", "hopeful", "ironic")
-- recommendations: object with exactly four array keys:
-    - books: 5 strings as "Title - Author"
-    - films: 5 film title strings
-    - music: 5 strings as artist names or "Artist - Album"
-    - podcasts: 3 podcast name strings
+- dominant_themes: array of 2–4 strings — literary themes derived from the specific titles detected (e.g. "existentialism", "feminist memoir", "southern gothic")
+- reader_archetype: string — a single evocative, specific label that captures this reader's sensibility (e.g. "Elegiac Realist", "Baroque Maximalist", "Quiet Apocalypticist"). Never use generic labels.
+- tone_profile: array of 2–4 strings — tonal qualities that run across the detected titles (e.g. "melancholic", "absurdist", "formally ambitious", "politically urgent")
+- recommendations: object with exactly these keys:
 
-Be specific and varied. No generic answers. Output the JSON object only.`;
+  REASONING INSTRUCTIONS (do not output this section — use it to inform your picks):
+  Before selecting any recommendation, identify: (1) the specific aesthetic and moral preoccupations shared across the detected books, (2) the formal qualities — sentence-level rhythm, structural experimentation, narrative voice — not just genre or subject matter, (3) the cultural and historical moment these titles collectively orbit. Then choose items that share that deeper DNA. Actively avoid anything that would appear on a generic "readers also enjoyed" or bestseller algorithm list. Prefer the unexpected and precise over the safe and obvious.
+
+  - books_intro: a 2–3 sentence paragraph written in a warm, critical voice. Name at least 2 of the 5 recommended books and explain specifically why they connect to books actually detected on this shelf — cite the detected titles by name. Focus on aesthetic or thematic resonance, not surface genre.
+  - books: 5 strings as "Title - Author" — chosen for aesthetic and thematic DNA, not genre similarity. Each should feel like a discovery, not an algorithm.
+  - films_intro: a 2–3 sentence paragraph. Name at least 2 of the 5 recommended films and explain what they share with specific detected books — in terms of moral texture, formal structure, or obsessive subject matter.
+  - films: 5 film title strings
+  - music_intro: a 2–3 sentence paragraph. Name 1–2 of the recommended artists/albums and describe what reading quality they share with the books on this shelf — tempo, density, emotional register, or lyrical sensibility.
+  - music: 5 strings as "Artist - Album"
+  - podcasts_intro: a 2–3 sentence paragraph. Name 1–2 of the recommended podcasts and explain why this reader specifically — given what they read — would find them valuable.
+  - podcasts: 3 podcast name strings
+
+Output the JSON object only.`;
 
 function rateLimitHeaders(result: { limit: number; remaining: number; resetAt: number }) {
   const retryAfter = Math.ceil((result.resetAt - Date.now()) / 1000);
@@ -64,13 +76,20 @@ function normalizeResponse(parsed: Record<string, unknown>): AnalyzeShelfRespons
   const ensureStringArray = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 
+  const ensureOptionalString = (v: unknown): string | undefined =>
+    typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
+
   const ensureRecs = (o: unknown): AnalyzeShelfResponse["recommendations"] => {
     if (o && typeof o === "object" && !Array.isArray(o)) {
       const r = o as Record<string, unknown>;
       return {
+        books_intro: ensureOptionalString(r.books_intro),
         books: ensureStringArray(r.books),
+        films_intro: ensureOptionalString(r.films_intro),
         films: ensureStringArray(r.films),
+        music_intro: ensureOptionalString(r.music_intro),
         music: ensureStringArray(r.music),
+        podcasts_intro: ensureOptionalString(r.podcasts_intro),
         podcasts: ensureStringArray(r.podcasts),
       };
     }

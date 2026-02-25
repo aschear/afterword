@@ -3,9 +3,13 @@
  * Used for MCP integrations (Spotify, Netflix) via themes and archetype.
  */
 export interface CulturalAnalysisRecommendations {
+  books_intro?: string;
   books: string[];
+  films_intro?: string;
   films: string[];
+  music_intro?: string;
   music: string[];
+  podcasts_intro?: string;
   podcasts: string[];
 }
 

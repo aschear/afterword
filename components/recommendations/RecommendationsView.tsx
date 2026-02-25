@@ -7,13 +7,26 @@ interface RecommendationsViewProps {
   shelfImageUrl: string | null;
 }
 
-function Section({ title, items }: { title: string; items: string[] }) {
+function Section({
+  title,
+  items,
+  intro,
+}: {
+  title: string;
+  items: string[];
+  intro?: string;
+}) {
   if (!items?.length) return null;
   return (
     <section className="mb-10">
-      <h2 className="font-display text-xl font-medium text-charcoal mb-4">
+      <h2 className="font-display text-xl font-medium text-charcoal mb-3">
         {title}
       </h2>
+      {intro && (
+        <p className="font-body text-sm text-charcoal/80 leading-relaxed mb-4 italic">
+          {intro}
+        </p>
+      )}
       <ul className="space-y-1">
         {items.map((item, i) => (
           <li key={i} className="font-body text-charcoal">
@@ -95,10 +108,10 @@ export function RecommendationsView({ data, shelfImageUrl }: RecommendationsView
           )}
         </div>
 
-        <Section title="Books" items={recommendations.books} />
-        <Section title="Films" items={recommendations.films} />
-        <Section title="Music" items={recommendations.music} />
-        <Section title="Podcasts" items={recommendations.podcasts} />
+        <Section title="Books" items={recommendations.books} intro={recommendations.books_intro} />
+        <Section title="Films" items={recommendations.films} intro={recommendations.films_intro} />
+        <Section title="Music" items={recommendations.music} intro={recommendations.music_intro} />
+        <Section title="Podcasts" items={recommendations.podcasts} intro={recommendations.podcasts_intro} />
       </div>
     </div>
   );
