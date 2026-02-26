@@ -1,6 +1,6 @@
 "use client";
 
-import type { AnalyzeShelfResponse } from "@/lib/types";
+import type { AnalyzeShelfResponse, MusicRecommendation } from "@/lib/types";
 
 interface RecommendationsViewProps {
   data: AnalyzeShelfResponse;
@@ -50,6 +50,48 @@ function Section({
             {item}
           </li>
         ))}
+      </ul>
+    </section>
+  );
+}
+
+function MusicSection({
+  items,
+  intro,
+}: {
+  items: MusicRecommendation[];
+  intro?: string;
+}) {
+  if (!items?.length) return null;
+  return (
+    <section className="mb-4">
+      <h2 className="font-display text-xl font-medium text-charcoal mb-3">
+        Music
+      </h2>
+      {intro && (
+        <p className="font-body text-sm text-charcoal/80 leading-relaxed mb-4 italic">
+          {intro}
+        </p>
+      )}
+      <ul className="space-y-1">
+        {items.map((item, i) =>
+          item.url ? (
+            <li key={i} className="font-body text-charcoal">
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 decoration-[hsl(30,8%,65%)] hover:decoration-charcoal transition-colors"
+              >
+                {item.label}
+              </a>
+            </li>
+          ) : (
+            <li key={i} className="font-body text-charcoal">
+              {item.label}
+            </li>
+          )
+        )}
       </ul>
     </section>
   );
@@ -119,7 +161,7 @@ export function RecommendationsView({ data, shelfImageUrl }: RecommendationsView
         <PencilDivider />
         <Section title="Films" items={recommendations.films} intro={recommendations.films_intro} />
         <PencilDivider />
-        <Section title="Music" items={recommendations.music} intro={recommendations.music_intro} />
+        <MusicSection items={recommendations.music} intro={recommendations.music_intro} />
         <PencilDivider />
         <Section title="Podcasts" items={recommendations.podcasts} intro={recommendations.podcasts_intro} />
       </div>

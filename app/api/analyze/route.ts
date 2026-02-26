@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import path from "path";
 import { getClientIp, checkRateLimit } from "@/lib/rateLimit";
-import type { AnalyzeShelfResponse } from "@/lib/types";
+import type { AnalyzeShelfResponse, MusicRecommendation } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -63,6 +66,48 @@ If books ARE visible, return a JSON object with these exact keys:
 
 Output the JSON object only.`;
 
+// ---------------------------------------------------------------------------
+// Spotify lookup via local MCP server
+// ---------------------------------------------------------------------------
+
+async function lookupSpotifyUrl(query: string): Promise<string | null> {
+  const serverPath = path.resolve(
+    process.cwd(),
+    "../spotify-mcp/dist/index.js"
+  );
+  const transport = new StdioClientTransport({
+    command: "node",
+    args: [serverPath],
+  });
+  const client = new Client(
+    { name: "afterword-client", version: "1.0.0" },
+    { capabilities: {} }
+  );
+  try {
+    await client.connect(transport);
+    const result = await client.callTool({
+      name: "search_spotify",
+      arguments: { query },
+    });
+    const text =
+      Array.isArray(result.content) &&
+      result.content[0]?.type === "text"
+        ? (result.content[0] as { type: "text"; text: string }).text
+        : null;
+    if (!text) return null;
+    const match = text.match(/URL:\s+(https:\/\/open\.spotify\.com\/\S+)/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function rateLimitHeaders(result: { limit: number; remaining: number; resetAt: number }) {
   const retryAfter = Math.ceil((result.resetAt - Date.now()) / 1000);
   return {
@@ -72,14 +117,22 @@ function rateLimitHeaders(result: { limit: number; remaining: number; resetAt: n
   };
 }
 
-function normalizeResponse(parsed: Record<string, unknown>): AnalyzeShelfResponse {
+// Intermediate type: identical to AnalyzeShelfResponse but music is still string[]
+// (before Spotify enrichment converts it to MusicRecommendation[]).
+type RawShelfResponse = Omit<AnalyzeShelfResponse, "recommendations"> & {
+  recommendations: Omit<AnalyzeShelfResponse["recommendations"], "music"> & {
+    music: string[];
+  };
+};
+
+function normalizeResponse(parsed: Record<string, unknown>): RawShelfResponse {
   const ensureStringArray = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 
   const ensureOptionalString = (v: unknown): string | undefined =>
     typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
 
-  const ensureRecs = (o: unknown): AnalyzeShelfResponse["recommendations"] => {
+  const ensureRecs = (o: unknown): RawShelfResponse["recommendations"] => {
     if (o && typeof o === "object" && !Array.isArray(o)) {
       const r = o as Record<string, unknown>;
       return {
@@ -88,7 +141,7 @@ function normalizeResponse(parsed: Record<string, unknown>): AnalyzeShelfRespons
         films_intro: ensureOptionalString(r.films_intro),
         films: ensureStringArray(r.films),
         music_intro: ensureOptionalString(r.music_intro),
-        music: ensureStringArray(r.music),
+        music: ensureStringArray(r.music), // still string[] here; enriched below
         podcasts_intro: ensureOptionalString(r.podcasts_intro),
         podcasts: ensureStringArray(r.podcasts),
       };
@@ -105,6 +158,10 @@ function normalizeResponse(parsed: Record<string, unknown>): AnalyzeShelfRespons
     recommendations: ensureRecs(parsed.recommendations),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
 
 export async function POST(request: Request) {
   try {
@@ -196,7 +253,25 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = normalizeResponse(parsed);
+    const rawResult = normalizeResponse(parsed);
+
+    // Enrich music recommendations with real Spotify URLs (in parallel).
+    // Falls back to null per item if the MCP call fails — never blocks the response.
+    const enrichedMusic: MusicRecommendation[] = await Promise.all(
+      rawResult.recommendations.music.map(async (label) => ({
+        label,
+        url: await lookupSpotifyUrl(label),
+      }))
+    );
+
+    const result: AnalyzeShelfResponse = {
+      ...rawResult,
+      recommendations: {
+        ...rawResult.recommendations,
+        music: enrichedMusic,
+      },
+    };
+
     return NextResponse.json(result, {
       headers: rateLimitHeaders(limitResult),
     });
