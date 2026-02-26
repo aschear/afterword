@@ -49,10 +49,10 @@ export function ProcessingState() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-6">
-      {/* Clip window — shows exactly 3 line slots */}
+      {/* Clip window — shows exactly 3 line slots, matches page max-width */}
       <div
-        className="relative overflow-hidden"
-        style={{ height: LINE_HEIGHT * 3, width: "100%", maxWidth: "24rem" }}
+        className="relative overflow-hidden w-full max-w-xl"
+        style={{ height: LINE_HEIGHT * 3 }}
       >
         {slots.map(({ line, slotIndex }) => {
           const translateY = sliding
@@ -81,7 +81,7 @@ export function ProcessingState() {
                 opacity,
               }}
             >
-              <p className="font-body text-charcoal text-lg leading-none">
+              <p className="font-body text-charcoal text-lg leading-none whitespace-nowrap">
                 {line}
               </p>
             </div>
