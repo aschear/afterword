@@ -7,7 +7,7 @@ import { getClientIp, checkRateLimit } from "@/lib/rateLimit";
 import type { AnalyzeShelfResponse, MusicRecommendation } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120; // tool-use rounds require extra time
 
 // Anthropic only accepts these four image MIME types.
 type AnthropicMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
@@ -24,6 +24,8 @@ function toAnthropicMediaType(type: string): AnthropicMediaType {
 }
 
 const SYSTEM_PROMPT = `You are a literary and cultural critic with deep expertise across literature, cinema, music, and long-form audio. You are analyzing a photo of someone's personal bookshelf.
+
+When using the search_spotify tool, you must evaluate the returned track data. Actively verify that the result is the original studio recording or a culturally significant live version. If the returned track contains words like "Karaoke", "Cover", "Tribute", or is clearly by the wrong artist, you must not use it. Instead, formulate a more specific search query and call the tool again until you find the correct, high-quality version.
 
 Analyze the image and output ONLY a raw JSON object — no prose, no markdown, no code fences, no explanation before or after.
 
@@ -60,49 +62,12 @@ If books ARE visible, return a JSON object with these exact keys:
   - films_intro: a 2–3 sentence paragraph. Name at least 2 of the 5 recommended films and explain what they share with specific detected books — in terms of moral texture, formal structure, or obsessive subject matter.
   - films: 5 film title strings
   - music_intro: a 2–3 sentence paragraph. Name 1–2 of the recommended artists/albums and describe what reading quality they share with the books on this shelf — tempo, density, emotional register, or lyrical sensibility.
-  - music: 5 strings as "Artist - Album"
+  - music: 5 objects, each shaped as { "label": "Artist - Album", "url": "https://open.spotify.com/..." }
+    For each music item, call the search_spotify tool with the artist and album name as the query, then set "url" to the returned Spotify URL. If a lookup fails for any reason, set "url" to null.
   - podcasts_intro: a 2–3 sentence paragraph. Name 1–2 of the recommended podcasts and explain why this reader specifically — given what they read — would find them valuable.
   - podcasts: 3 podcast name strings
 
 Output the JSON object only.`;
-
-// ---------------------------------------------------------------------------
-// Spotify lookup via local MCP server
-// ---------------------------------------------------------------------------
-
-async function lookupSpotifyUrl(query: string): Promise<string | null> {
-  const serverPath = path.resolve(
-    process.cwd(),
-    "../spotify-mcp/dist/index.js"
-  );
-  const transport = new StdioClientTransport({
-    command: "node",
-    args: [serverPath],
-  });
-  const client = new Client(
-    { name: "afterword-client", version: "1.0.0" },
-    { capabilities: {} }
-  );
-  try {
-    await client.connect(transport);
-    const result = await client.callTool({
-      name: "search_spotify",
-      arguments: { query },
-    });
-    const text =
-      Array.isArray(result.content) &&
-      result.content[0]?.type === "text"
-        ? (result.content[0] as { type: "text"; text: string }).text
-        : null;
-    if (!text) return null;
-    const match = text.match(/URL:\s+(https:\/\/open\.spotify\.com\/\S+)/);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  } finally {
-    await client.close().catch(() => {});
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -117,22 +82,32 @@ function rateLimitHeaders(result: { limit: number; remaining: number; resetAt: n
   };
 }
 
-// Intermediate type: identical to AnalyzeShelfResponse but music is still string[]
-// (before Spotify enrichment converts it to MusicRecommendation[]).
-type RawShelfResponse = Omit<AnalyzeShelfResponse, "recommendations"> & {
-  recommendations: Omit<AnalyzeShelfResponse["recommendations"], "music"> & {
-    music: string[];
-  };
-};
-
-function normalizeResponse(parsed: Record<string, unknown>): RawShelfResponse {
+function normalizeResponse(parsed: Record<string, unknown>): AnalyzeShelfResponse {
   const ensureStringArray = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 
   const ensureOptionalString = (v: unknown): string | undefined =>
     typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
 
-  const ensureRecs = (o: unknown): RawShelfResponse["recommendations"] => {
+  // Claude now outputs music as { label, url } objects directly.
+  const ensureMusicArray = (v: unknown): MusicRecommendation[] => {
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter(
+        (item): item is Record<string, unknown> =>
+          typeof item === "object" && item !== null && !Array.isArray(item)
+      )
+      .map((item) => ({
+        label: typeof item.label === "string" ? item.label.trim() : "",
+        url:
+          typeof item.url === "string" && item.url.startsWith("https://")
+            ? item.url
+            : null,
+      }))
+      .filter((m) => m.label.length > 0);
+  };
+
+  const ensureRecs = (o: unknown): AnalyzeShelfResponse["recommendations"] => {
     if (o && typeof o === "object" && !Array.isArray(o)) {
       const r = o as Record<string, unknown>;
       return {
@@ -141,7 +116,7 @@ function normalizeResponse(parsed: Record<string, unknown>): RawShelfResponse {
         films_intro: ensureOptionalString(r.films_intro),
         films: ensureStringArray(r.films),
         music_intro: ensureOptionalString(r.music_intro),
-        music: ensureStringArray(r.music), // still string[] here; enriched below
+        music: ensureMusicArray(r.music),
         podcasts_intro: ensureOptionalString(r.podcasts_intro),
         podcasts: ensureStringArray(r.podcasts),
       };
@@ -164,6 +139,8 @@ function normalizeResponse(parsed: Record<string, unknown>): RawShelfResponse {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: Request) {
+  let mcpClient: Client | null = null;
+
   try {
     const ip = getClientIp(request);
     const limitResult = checkRateLimit(ip);
@@ -197,38 +174,122 @@ export async function POST(request: Request) {
       );
     }
 
+    // Initialize MCP client and retrieve available tools
+    const serverPath = path.resolve(process.cwd(), "../spotify-mcp/dist/index.js");
+    const transport = new StdioClientTransport({
+      command: "node",
+      args: [serverPath],
+    });
+    mcpClient = new Client(
+      { name: "afterword-client", version: "1.0.0" },
+      { capabilities: {} }
+    );
+    await mcpClient.connect(transport);
+    const { tools: mcpTools } = await mcpClient.listTools();
+
+    // Convert MCP tool descriptors to Anthropic's tool format
+    const anthropicTools: Anthropic.Messages.Tool[] = mcpTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description ?? "",
+      input_schema: tool.inputSchema as Anthropic.Messages.Tool["input_schema"],
+    }));
+
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
     const mediaType = toAnthropicMediaType(file.type);
 
     const anthropic = new Anthropic({ apiKey });
-    const message = await anthropic.messages.create({
+
+    // Build initial message history
+    const messages: Anthropic.Messages.MessageParam[] = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: mediaType,
+              data: base64,
+            },
+          },
+          {
+            type: "text",
+            text: "Analyze this shelf image and return the JSON.",
+          },
+        ],
+      },
+    ];
+
+    // Initial Anthropic call with tools available
+    let response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType,
-                data: base64,
-              },
-            },
-            {
-              type: "text",
-              text: "Analyze this shelf image and return the JSON.",
-            },
-          ],
-        },
-      ],
+      tools: anthropicTools,
+      messages,
     });
 
-    const firstBlock = message.content[0];
-    const raw = firstBlock?.type === "text" ? firstBlock.text : null;
+    // Agentic tool-use loop: execute tools until Claude produces its final text response
+    let iterations = 0;
+    const MAX_ITERATIONS = 20;
+
+    while (response.stop_reason === "tool_use" && iterations < MAX_ITERATIONS) {
+      iterations++;
+
+      const toolUseBlocks = response.content.filter(
+        (b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use"
+      );
+
+      // Append Claude's assistant turn (including any tool_use blocks) to history
+      messages.push({ role: "assistant", content: response.content });
+
+      // Execute each requested tool call against the MCP server
+      const toolResults: Anthropic.Messages.ToolResultBlockParam[] = await Promise.all(
+        toolUseBlocks.map(async (block) => {
+          try {
+            const result = await mcpClient!.callTool({
+              name: block.name,
+              arguments: block.input as Record<string, unknown>,
+            });
+            const text =
+              Array.isArray(result.content) && result.content[0]?.type === "text"
+                ? (result.content[0] as { type: "text"; text: string }).text
+                : JSON.stringify(result.content);
+            return {
+              type: "tool_result" as const,
+              tool_use_id: block.id,
+              content: text,
+            };
+          } catch (err) {
+            return {
+              type: "tool_result" as const,
+              tool_use_id: block.id,
+              content: `Error: ${err instanceof Error ? err.message : "Tool execution failed"}`,
+              is_error: true,
+            };
+          }
+        })
+      );
+
+      // Append tool results and send back to Claude
+      messages.push({ role: "user", content: toolResults });
+
+      response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        tools: anthropicTools,
+        messages,
+      });
+    }
+
+    // Extract the final text block from Claude's completed response
+    const textBlock = response.content.find(
+      (b): b is Anthropic.Messages.TextBlock => b.type === "text"
+    );
+    const raw = textBlock?.text ?? null;
+
     if (raw === null) {
       return NextResponse.json(
         { error: "Empty response from analysis service" },
@@ -253,25 +314,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const rawResult = normalizeResponse(parsed);
-
-    // Enrich music recommendations with real Spotify URLs (in parallel).
-    // Falls back to null per item if the MCP call fails — never blocks the response.
-    const enrichedMusic: MusicRecommendation[] = await Promise.all(
-      rawResult.recommendations.music.map(async (label) => ({
-        label,
-        url: await lookupSpotifyUrl(label),
-      }))
-    );
-
-    const result: AnalyzeShelfResponse = {
-      ...rawResult,
-      recommendations: {
-        ...rawResult.recommendations,
-        music: enrichedMusic,
-      },
-    };
-
+    const result = normalizeResponse(parsed);
     return NextResponse.json(result, {
       headers: rateLimitHeaders(limitResult),
     });
@@ -281,5 +324,9 @@ export async function POST(request: Request) {
       { error: "Analysis failed" },
       { status: 500 }
     );
+  } finally {
+    if (mcpClient) {
+      await mcpClient.close().catch(() => {});
+    }
   }
 }
